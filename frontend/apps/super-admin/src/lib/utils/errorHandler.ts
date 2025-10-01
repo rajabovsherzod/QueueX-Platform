@@ -9,7 +9,7 @@ export class ErrorHandler {
       const status = error.response?.status;
       const message = error.response?.data?.message || error.message;
 
-      console.error(`${errorContext} Axios Error:`, {
+      console.log(`${errorContext} Axios Error:`, {
         status,
         message,
         url: error.config?.url,

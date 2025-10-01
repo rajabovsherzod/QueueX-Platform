@@ -2,7 +2,7 @@ import axios, { AxiosInstance, AxiosResponse, AxiosRequestHeaders } from "axios"
 import { tokenStorage } from "@/lib/auth/token";
 import { handleApiError } from "@/lib/utils/errorHandler";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api";
 const isBrowser = typeof window !== "undefined";
 
 export const axiosInstance: AxiosInstance = axios.create({
@@ -43,7 +43,7 @@ axiosInstance.interceptors.response.use(
   },
   (error) => {
     if (process.env.NODE_ENV === 'development') {
-      console.error(`❌ Public Error: ${error.response?.status} ${error.config?.url}`);
+      console.log(`❌ Public Error: ${error.response?.status} ${error.config?.url}`);
     }
     
     handleApiError(error, 'public-api');
@@ -104,7 +104,7 @@ $axios.interceptors.response.use(
         return $axios(originalRequest);
         
       } catch (refreshError) {
-        console.error('❌ Token refresh failed:', refreshError);
+        console.log('❌ Token refresh failed:', refreshError);
         tokenStorage.clearTokens();
 
         if (isBrowser) {
@@ -115,7 +115,7 @@ $axios.interceptors.response.use(
     }
 
     if (process.env.NODE_ENV === 'development') {
-      console.error(`❌ Auth Error: ${error.response?.status} ${error.config?.url}`);
+      console.log(`❌ Auth Error: ${error.response?.status} ${error.config?.url}`);
     }
 
     handleApiError(error, 'auth-api');
