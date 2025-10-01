@@ -13,7 +13,7 @@ class DatabaseService {
   private connections: Map<string, PrismaClient> = new Map();
 
   generateDatabaseName(companySlug: string): string {
-    return `equeue_${companySlug.replace(/-/g, "_")}`;
+    return `queuex_${companySlug.replace(/-/g, "_")}`;
   }
   generateDatabaseCredentials(companySlug: string): DatabaseConfig {
     const dbName = this.generateDatabaseName(companySlug);
@@ -258,7 +258,7 @@ class DatabaseService {
     companySlug: string,
     branchSlug: string
   ): DatabaseConfig {
-    const dbName = `equeue_${companySlug}_${branchSlug}`.replace(/-/g, "_");
+    const dbName = `queuex_${companySlug}_${branchSlug}`.replace(/-/g, "_");
 
     return {
       host: process.env.DB_HOST || "localhost",

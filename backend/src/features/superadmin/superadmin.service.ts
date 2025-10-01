@@ -5,6 +5,7 @@ import tokenService from "@/shared/services/token.service";
 import databaseService from "@/shared/services/database.service";
 import { SuperAdminLoginResponse, CreateCompanyRequest, CompanyResponseDTO, CompanyDetailDTO } from "./superadmin.types";
 import { CompanyDTO } from "./superadmin.dto";
+import { moveLogoToCompanyFolder, cleanupTempFile } from "@/shared/middlewares/upload.middleware";
 
 export class SuperAdminService {
   public async login(email: string, password: string): Promise<SuperAdminLoginResponse> {
@@ -67,13 +68,14 @@ export class SuperAdminService {
       // 2. Logo path tayyorlash
       let logoPath: string | null = null;
       if (logoFile) {
-        // Middleware allaqachon file'ni to'g'ri joyga saqlagan
-        // Faqat URL path yaratish kerak
-        const normalizedSlug = slug.trim().toLowerCase();
-        logoPath = `/uploads/companies/${normalizedSlug}/${logoFile.filename}`;
+        // Temp file'ni company folder'ga ko'chirish
+        logoPath = moveLogoToCompanyFolder(
+          logoFile.path,
+          slug.trim().toLowerCase(),
+          logoFile.originalname
+        );
         
-        console.log(`📁 Logo file saved to: ${logoFile.path}`);
-        console.log(`🔗 Logo URL: ${logoPath}`);
+        console.log(`📦 Logo moved from temp to: ${logoPath}`);
       }
   
       // 3. Company yaratish
@@ -115,16 +117,12 @@ export class SuperAdminService {
         console.error("❌ Database cleanup failed:", cleanupError);
       }
   
-      // Logo file'ni ham o'chirish (agar yuklangan bo'lsa)
+      // Temp file'ni o'chirish
       if (logoFile && logoFile.path) {
         try {
-          const fs = require('fs');
-          if (fs.existsSync(logoFile.path)) {
-            fs.unlinkSync(logoFile.path);
-            console.log(`🧹 Logo file cleanup completed: ${logoFile.path}`);
-          }
+          cleanupTempFile(logoFile.path);
         } catch (logoCleanupError) {
-          console.error("❌ Logo file cleanup failed:", logoCleanupError);
+          console.error("❌ Logo cleanup failed:", logoCleanupError);
         }
       }
   

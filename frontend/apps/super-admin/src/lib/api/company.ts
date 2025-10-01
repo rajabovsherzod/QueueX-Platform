@@ -2,14 +2,17 @@ import { $axios } from "./axios";
 import { CreateCompanyFormData } from "@/schemas/companySchema";
 import { CompanyResponseDTO, CompaniesApiResponse } from "@/types/company";
 
-
 export class CompanyService {
   static async createCompany(payload: CreateCompanyFormData): Promise<CompanyResponseDTO> {
     const formData = new FormData();
     
     Object.entries(payload).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
-        formData.append(key, value);
+      if (value !== undefined && value !== null) {
+        if (value instanceof File) {
+          formData.append(key, value);
+        } else if (value !== '') {
+          formData.append(key, value as string);
+        }
       }
     });
   
@@ -26,7 +29,8 @@ export class CompanyService {
     const { data } = await $axios.get<CompanyResponseDTO>(`superadmin/companies/${id}`)
     return data
   }
-  static async updateCompany(id: string, payload: Partial<CreateCompanyFormData>): Promise<CreateCompanyResponse> {
+  
+  static async updateCompany(id: string, payload: Partial<CreateCompanyFormData>): Promise<CompanyResponseDTO> {
     const { data } = await $axios.put<CompanyResponseDTO>(`superadmin/companies/${id}`, payload)
     return data
   }

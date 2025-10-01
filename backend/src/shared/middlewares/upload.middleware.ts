@@ -6,40 +6,25 @@ import ApiError from "@/shared/utils/api.error";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
-const MAX_WIDTH = 2000;
-const MAX_HEIGHT = 2000;
 
-const createUploadDir = (dirPath: string) => {
+export const createUploadDir = (dirPath: string) => {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
   }
 };
 
+// Vaqtinchalik storage - slug hali noma'lum
 const storage = multer.diskStorage({
   destination: (req: Request, file, cb) => {
-    // Company ID, slug yoki companyId'dan birini olish
-    const companyIdentifier = req.params.id || req.body.slug || req.body.companyId;
-    
-    if (!companyIdentifier) {
-      return cb(new ApiError(400, "Company identifier (ID or slug) required for file upload"), "");
-    }
-
-    // Slug'ni normalize qilish (kichik harf, trim)
-    const normalizedIdentifier = companyIdentifier.toString().trim().toLowerCase();
-
-    const uploadPath = path.join(
-      process.cwd(),
-      "uploads",
-      "companies",
-      normalizedIdentifier  // Slug yoki ID ishlatish
-    );
-    
+    // Vaqtinchalik folder - keyinchalik ko'chiramiz
+    const uploadPath = path.join(process.cwd(), "uploads", "temp");
     createUploadDir(uploadPath);
     cb(null, uploadPath);
   },
   filename: (req: Request, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     const ext = path.extname(file.originalname);
-    const filename = `logo${ext}`;
+    const filename = `logo-${uniqueSuffix}${ext}`;
     cb(null, filename);
   },
 });
@@ -91,7 +76,41 @@ export const handleUploadError = (
   next(error);
 };
 
-// Eski logo'ni o'chirish (slug bilan)
+// File'ni to'g'ri joyga ko'chirish
+export const moveLogoToCompanyFolder = (
+  tempFilePath: string,
+  companySlug: string,
+  originalFilename: string
+): string => {
+  const normalizedSlug = companySlug.trim().toLowerCase();
+  const ext = path.extname(originalFilename);
+  
+  const targetDir = path.join(
+    process.cwd(),
+    "uploads",
+    "companies",
+    normalizedSlug
+  );
+  
+  createUploadDir(targetDir);
+  
+  const targetFilename = `logo${ext}`;
+  const targetPath = path.join(targetDir, targetFilename);
+  
+  // Eski logo'ni o'chirish
+  if (fs.existsSync(targetPath)) {
+    fs.unlinkSync(targetPath);
+    console.log(`🗑️ Deleted old logo: ${targetPath}`);
+  }
+  
+  // Yangi logo'ni ko'chirish
+  fs.renameSync(tempFilePath, targetPath);
+  console.log(`📦 Moved logo: ${tempFilePath} -> ${targetPath}`);
+  
+  return `/uploads/companies/${normalizedSlug}/${targetFilename}`;
+};
+
+// Eski logo'ni o'chirish
 export const deleteOldLogo = (companySlug: string): void => {
   const normalizedSlug = companySlug.toString().trim().toLowerCase();
   const logoDir = path.join(process.cwd(), "uploads", "companies", normalizedSlug);
@@ -107,7 +126,7 @@ export const deleteOldLogo = (companySlug: string): void => {
   }
 };
 
-// Logo URL generatsiya qilish (slug bilan)
+// Logo URL generatsiya qilish
 export const generateLogoUrl = (
   companySlug: string,
   filename: string
@@ -129,4 +148,12 @@ export const checkLogoExists = (companySlug: string): string | null => {
   const logoFile = files.find(file => file.startsWith("logo"));
   
   return logoFile ? generateLogoUrl(normalizedSlug, logoFile) : null;
+};
+
+// Vaqtinchalik file'ni o'chirish (xatolik yuz berganda)
+export const cleanupTempFile = (filePath: string): void => {
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+    console.log(`🧹 Cleaned up temp file: ${filePath}`);
+  }
 };

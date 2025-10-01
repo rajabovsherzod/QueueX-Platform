@@ -62,13 +62,16 @@ $axios.interceptors.request.use(
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-    } else {
-      console.warn('⚠️ No access token found for authenticated request');
+    }
+
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
     }
 
     if (process.env.NODE_ENV === 'development') {
       console.log(`🔐 Auth API: ${config.method?.toUpperCase()} ${config.url}`, {
         hasToken: !!token,
+        isFormData: config.data instanceof FormData
       });
     }
 
