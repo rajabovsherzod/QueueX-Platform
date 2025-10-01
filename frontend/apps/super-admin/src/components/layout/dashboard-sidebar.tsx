@@ -1,6 +1,8 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
@@ -16,36 +18,32 @@ const menuItems = [
     icon: LayoutDashboard,
     label: "Dashboard",
     href: "/dashboard",
-    active: true,
   },
   {
     icon: Users,
     label: "Foydalanuvchilar",
     href: "/dashboard/users",
-    active: false,
   },
   {
     icon: Building2,
     label: "Kompaniyalar",
     href: "/companies",
-    active: false,
   },
   {
     icon: Calendar,
     label: "Navbatlar",
     href: "/dashboard/queues",
-    active: false,
   },
   {
     icon: Settings,
     label: "Sozlamalar",
     href: "/dashboard/settings",
-    active: false,
   },
 ];
 
 export function DashboardSidebar() {
   const logoutMutation = useLogout();
+  const pathname = usePathname();
 
   const handleLogout = () => {
     logoutMutation.mutate();
@@ -60,23 +58,27 @@ export function DashboardSidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 px-4 py-6 space-y-2">
-        {menuItems.map((item) => (
-          <a
-            key={item.href}
-            href={item.href}
-            className={`
-              flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors
-              ${
-                item.active
-                  ? "bg-indigo-100 text-indigo-700"
-                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-              }
-            `}
-          >
-            <item.icon className="w-5 h-5 mr-3" />
-            {item.label}
-          </a>
-        ))}
+        {menuItems.map((item) => {
+          const isActive = pathname === item.href;
+          
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`
+                flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors
+                ${
+                  isActive
+                    ? "bg-indigo-100 text-indigo-700"
+                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                }
+              `}
+            >
+              <item.icon className="w-5 h-5 mr-3" />
+              {item.label}
+            </Link>
+          );
+        })}
       </nav>
 
       {/* Logout button */}

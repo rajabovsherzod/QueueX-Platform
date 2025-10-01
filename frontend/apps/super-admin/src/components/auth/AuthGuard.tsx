@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { tokenStorage } from "@/lib/auth/token";
 
@@ -12,12 +12,19 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const hasChecked = useRef(false);  // useRef - persist qiladi
 
   useEffect(() => {
+    // Faqat bir marta tekshiramiz
+    if (hasChecked.current) {
+      return;
+    }
+
     const checkAuth = () => {
       const authenticated = tokenStorage.isAuthenticated();
       setIsAuthenticated(authenticated);
       setIsLoading(false);
+      hasChecked.current = true;
 
       if (!authenticated) {
         router.push("/login");
@@ -27,6 +34,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     checkAuth();
   }, [router]);
 
+  // Faqat birinchi marta loading
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
