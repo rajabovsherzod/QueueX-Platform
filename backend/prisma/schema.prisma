@@ -1,0 +1,299 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Platform-level models
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  firstName String
+  lastName  String
+  phone     String?
+  password  String
+  role      UserRole @default(CUSTOMER)
+  status    UserStatus @default(PENDING)
+  
+  
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
+  
+  
+  queues    Queue[]
+  
+  
+  operatorAssignments OperatorAssignment[]
+  
+ 
+  notifications Notification[]
+  
+ 
+  refreshTokens RefreshToken[]
+  verificationCodes VerificationCode[]
+  passwordResetTokens PasswordResetToken[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("users")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  COMPANY_ADMIN
+  OPERATOR
+  CUSTOMER
+}
+
+enum UserStatus {
+  PENDING   // Email yuborilgan, hali tasdiqlanmagan
+  ACTIVE    // Email tasdiqlangan, faol user
+  INACTIVE  // Faol emas
+}
+
+model Company {
+  id          String     @id @default(uuid())
+  name        String
+  slug        String  @unique
+  description String?
+  logo        String?
+  phone       String?
+  email       String?
+  website     String?
+  isActive    Boolean @default(true)
+  
+  // Database connection info for tenant isolation
+  dbHost      String?
+  dbName      String?
+  dbUser      String?
+  dbPassword  String?
+  
+  // Relationships
+  users       User[]
+  branches    Branch[]
+  services    Service[]
+  queues      Queue[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("companies")
+}
+
+model Branch {
+  id          String     @id @default(uuid())
+  name        String
+  address     String
+  phone       String?
+  isActive    Boolean @default(true)
+  
+  // Multi-tenant
+  companyId   String
+  company     Company @relation(fields: [companyId], references: [id])
+  
+  // Relationships
+  services    Service[]
+  queues      Queue[]
+  operators   OperatorAssignment[]
+  kioskSessions KioskSession[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("branches")
+}
+
+model Service {
+  id          String     @id @default(uuid())
+  name        String
+  description String?
+  duration    Int     @default(15) // minutes
+  isActive    Boolean @default(true)
+  
+  // Multi-tenant
+  companyId   String
+  company     Company @relation(fields: [companyId], references: [id])
+  
+  branchId    String
+  branch      Branch  @relation(fields: [branchId], references: [id])
+  
+  // Relationships
+  queues      Queue[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("services")
+}
+
+model OperatorAssignment {
+  id        String     @id @default(uuid())
+  isActive  Boolean @default(true)
+  
+  // Relationships
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
+  
+  branchId  String
+  branch    Branch  @relation(fields: [branchId], references: [id])
+  
+  // Operator can handle queues
+  queues    Queue[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([userId, branchId])
+  @@map("operator_assignments")
+}
+
+model Queue {
+  id          String     @id @default(uuid())
+  queueNumber String
+  status      QueueStatus @default(WAITING)
+  source      QueueSource @default(ONLINE)
+  
+  // Booking details
+  bookedAt    DateTime    @default(now())
+  calledAt    DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  
+  // QR Code for kiosk
+  qrCode      String?     @unique
+  
+  // Multi-tenant relationships
+  companyId   String
+  company     Company     @relation(fields: [companyId], references: [id])
+  
+  branchId    String
+  branch      Branch      @relation(fields: [branchId], references: [id])
+  
+  serviceId   String
+  service     Service     @relation(fields: [serviceId], references: [id])
+  
+  // Customer (can be null for kiosk users)
+  customerId  String?
+  customer    User?       @relation(fields: [customerId], references: [id])
+  
+  // Operator handling the queue
+  operatorId  String?
+  operator    OperatorAssignment? @relation(fields: [operatorId], references: [id])
+  
+  // Kiosk session (if created via kiosk)
+  kioskSessionId String?
+  kioskSession   KioskSession? @relation(fields: [kioskSessionId], references: [id])
+  
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  @@map("queues")
+}
+
+enum QueueStatus {
+  WAITING
+  CALLED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum QueueSource {
+  ONLINE
+  KIOSK
+  OPERATOR
+}
+
+model KioskSession {
+  id        String     @id @default(uuid())
+  sessionId String   @unique
+  isActive  Boolean  @default(true)
+  expiresAt DateTime
+  
+  // Branch where kiosk is located
+  branchId  String
+  branch    Branch   @relation(fields: [branchId], references: [id])
+  
+  // Queues created in this session
+  queues    Queue[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("kiosk_sessions")
+}
+
+model Notification {
+  id        String             @id @default(uuid())
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  
+
+  queueId   String?
+  
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  
+  @@map("notifications")
+}
+
+enum NotificationType {
+  QUEUE_CALLED
+  QUEUE_READY
+  QUEUE_CANCELLED
+  SYSTEM_ANNOUNCEMENT
+}
+
+model VerificationCode {
+  id        String     @id @default(uuid())
+  code      String
+  expiresAt DateTime
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("verification_codes")
+}
+
+model RefreshToken {
+  id        String     @id @default(uuid())
+  token     String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String     @id @default(uuid())
+  token     String
+  expiresAt DateTime
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("password_reset_tokens")
+}
