@@ -1,73 +1,48 @@
-# Multi-stage build for production optimization
-FROM node:18-alpine AS base
+# 1-bosqich: Build environment
+FROM node:18 AS builder  
 
-# Install PNPM
+# Prisma uchun kerakli OpenSSL versiyasini o'rnatish (Ubuntu'da kerak emas, lekin qoldirishimiz mumkin)
+RUN apt-get update && apt-get install -y openssl
+
+# pnpm o'rnatish
 RUN npm install -g pnpm
 
-# Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package.json pnpm-lock.yaml* ./
-COPY .pnpmrc ./
+# Kerakli fayllarni oldindan nusxalash
+COPY package.json pnpm-lock.yaml ./
+COPY prisma ./prisma
+COPY docker-entrypoint.sh ./
 
-# Install dependencies (update lockfile if needed)
-RUN pnpm install --no-frozen-lockfile
+# Bog'liqliklarni o'rnatish
+RUN pnpm install
 
-# Development stage
-FROM base AS development
-WORKDIR /app
+# Qolgan barcha fayllarni nusxalash
 COPY . .
-RUN pnpm exec prisma generate
-EXPOSE 3000
-CMD ["pnpm", "run", "dev"]
 
-# Build stage
-FROM base AS build
-WORKDIR /app
-COPY . .
-RUN pnpm exec prisma generate
+# TypeScript'ni JavaScript'ga kompilyatsiya qilish
 RUN pnpm run build
 
-# Production stage
-FROM node:18-alpine AS production
 
-# Install PNPM
+# 2-bosqich: Production/Runtime environment
+FROM node:18  
+
+# Prisma uchun kerakli OpenSSL versiyasini o'rnatish
+RUN apt-get update && apt-get install -y openssl
+
+# pnpm o'rnatish (final bosqich uchun ham)
 RUN npm install -g pnpm
 
-# Create app user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nodeuser -u 1001
-
-# Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package.json pnpm-lock.yaml* ./
-COPY .pnpmrc ./
+# Production bog'liqliklarini builder'dan nusxalash
+COPY --from=builder /app/node_modules ./node_modules
 
-# Install ALL dependencies (including dev deps for Prisma CLI)
-RUN pnpm install --no-frozen-lockfile
+# Kompilyatsiya qilingan kodni builder'dan nusxalash
+COPY --from=builder /app/dist ./dist
 
-# Generate Prisma client in production stage
-COPY --from=build --chown=nodeuser:nodejs /app/prisma ./prisma
-RUN pnpm exec prisma generate
+# Entrypoint skriptini builder'dan nusxalash va bajariladigan qilish
+COPY --from=builder /app/docker-entrypoint.sh .
+RUN chmod +x ./docker-entrypoint.sh
 
-# Copy built application
-COPY --from=build --chown=nodeuser:nodejs /app/dist ./dist
-
-# Create uploads directory
-RUN mkdir -p uploads && chown nodeuser:nodejs uploads
-
-# Switch to non-root user
-USER nodeuser
-
-# Expose port
-EXPOSE 3000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node dist/healthcheck.js || exit 1
-
-# Start application
-CMD ["node", "dist/server.js"]
+ENTRYPOINT ["./docker-entrypoint.sh"]

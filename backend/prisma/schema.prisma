@@ -5,7 +5,8 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl"]
 }
 
 datasource db {
@@ -30,7 +31,6 @@ model User {
   
   
   queues    Queue[]
-  
   
   operatorAssignments OperatorAssignment[]
   
@@ -296,4 +296,5 @@ model PasswordResetToken {
   updatedAt DateTime @updatedAt
   
   @@map("password_reset_tokens")
+
 }

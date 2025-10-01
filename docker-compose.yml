@@ -1,130 +1,66 @@
-version: "3.8"
+version: '3.8'
 
 services:
-  # PostgreSQL Database - Platform DB
   postgres:
     image: postgres:15-alpine
-    container_name: e-queue-postgres
+    container_name: queuex_platform_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: e_queue_platform
-      POSTGRES_USER: e_queue_user
-      POSTGRES_PASSWORD: e_queue_password_2024
-      POSTGRES_MULTIPLE_DATABASES: e_queue_platform,company_demo_bank,company_demo_clinic
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "5433:5432"
+      - "${DB_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./docker/postgres/init:/docker-entrypoint-initdb.d
     networks:
-      - e-queue-network
+      - queuex-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U e_queue_user -d e_queue_platform"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # Redis - Caching & Sessions
   redis:
     image: redis:7-alpine
-    container_name: e-queue-redis
+    container_name: queuex_platform_redis
     restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD}
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT}:6379"
     volumes:
       - redis_data:/data
     networks:
-      - e-queue-network
-    command: redis-server --appendonly yes --requirepass redis_password_2024
+      - queuex-network
     healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # Backend API
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: e-queue-backend
+    image: queuex/platform-backend:latest
+    container_name: queuex_platform_backend
     restart: unless-stopped
     ports:
-      - "3000:3000"
-    environment:
-      NODE_ENV: development
-      DATABASE_URL: postgresql://e_queue_user:e_queue_password_2024@postgres:5432/e_queue_platform
-      REDIS_URL: redis://:redis_password_2024@redis:6379
-      JWT_SECRET: super-secret-jwt-key-for-development-2024
-      PORT: 3000
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
-      - ./backend/uploads:/app/uploads
+      - "${APP_PORT}:3000"
     networks:
-      - e-queue-network
+      - queuex-network
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: pnpm run dev
-
-  # PgAdmin - Database Management UI
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: e-queue-pgadmin
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@e-queue.uz
-      PGADMIN_DEFAULT_PASSWORD: admin123
-      PGADMIN_CONFIG_SERVER_MODE: "False"
-    ports:
-      - "5050:80"
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-    networks:
-      - e-queue-network
-    depends_on:
-      - postgres
-
-  # Redis Commander - Redis Management UI
-  redis-commander:
-    image: rediscommander/redis-commander:latest
-    container_name: e-queue-redis-commander
-    restart: unless-stopped
-    environment:
-      REDIS_HOSTS: local:redis:6379:0:redis_password_2024
-    ports:
-      - "8081:8081"
-    networks:
-      - e-queue-network
-    depends_on:
-      - redis
-
-  # Nginx Reverse Proxy
-  nginx:
-    image: nginx:alpine
-    container_name: e-queue-nginx
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
-    depends_on:
-      - backend
-    networks:
-      - e-queue-network
+    env_file:
+      - .env
 
 volumes:
   postgres_data:
-    driver: local
+    name: queuex_platform_postgres_data
   redis_data:
-    driver: local
-  pgadmin_data:
-    driver: local
+    name: queuex_platform_redis_data
 
 networks:
-  e-queue-network:
+  queuex-network:
+    name: queuex_platform_network
     driver: bridge
