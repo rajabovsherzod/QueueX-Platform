@@ -1,0 +1,40 @@
+import { Company } from "@/types/company";
+
+export const mockCompanies: Company[] = [
+  {
+    id: "1",
+    name: "Tech Solutions LLC",
+    email: "info@techsolutions.uz",
+    phone: "+998 90 123 45 67",
+    address: "Toshkent sh., Yunusobod t., Amir Temur ko'ch., 108",
+    website: "https://techsolutions.uz",
+    status: "active",
+    employeeCount: 45,
+    queuesCount: 12,
+    createdAt: "2024-01-15",
+  },
+  {
+    id: "2",
+    name: "Medical Center Plus",
+    email: "contact@medcenter.uz",
+    phone: "+998 71 234 56 78",
+    address: "Toshkent sh., Chilonzor t., Bunyodkor ko'ch., 25",
+    website: "https://medcenter.uz",
+    status: "active",
+    employeeCount: 120,
+    queuesCount: 8,
+    createdAt: "2024-02-20",
+  },
+  {
+    id: "3",
+    name: "Bank Services",
+    email: "info@bankservices.uz",
+    phone: "+998 95 345 67 89",
+    address: "Toshkent sh., Mirobod t., Navoi ko'ch., 15",
+    website: "https://bankservices.uz",
+    status: "inactive",
+    employeeCount: 78,
+    queuesCount: 5,
+    createdAt: "2024-03-10",
+  },
+];
